@@ -84,6 +84,11 @@
       color: white;
     }
 
+    .sari {
+      background: #d98c00;
+      color: white;
+    }
+
     .gizli {
       display: none;
     }
@@ -98,6 +103,81 @@
       border: none;
       box-sizing: border-box;
       margin-top: 18px;
+    }
+
+    .popupOverlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.72);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+      padding: 24px;
+      box-sizing: border-box;
+    }
+
+    .popupBox {
+      width: 100%;
+      max-width: 760px;
+      background: white;
+      color: #111;
+      border-radius: 28px;
+      padding: 42px 28px;
+      box-sizing: border-box;
+      text-align: center;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.35);
+    }
+
+    .popupIcon {
+      font-size: 90px;
+      margin-bottom: 18px;
+    }
+
+    .popupTitle {
+      font-size: clamp(34px, 7vw, 58px);
+      font-weight: bold;
+      margin-bottom: 22px;
+    }
+
+    .popupText {
+      font-size: clamp(24px, 5vw, 40px);
+      font-weight: bold;
+      line-height: 1.35;
+    }
+
+    .popupSub {
+      font-size: clamp(20px, 4vw, 32px);
+      margin-top: 18px;
+      line-height: 1.35;
+      color: #333;
+    }
+
+    .popupLoading {
+      width: 70px;
+      height: 70px;
+      border: 9px solid #ddd;
+      border-top: 9px solid #0b4f7a;
+      border-radius: 50%;
+      margin: 0 auto 24px;
+      animation: spin 1s linear infinite;
+    }
+
+    .popupYesil {
+      border-top: 18px solid #148f3c;
+    }
+
+    .popupKirmizi {
+      border-top: 18px solid #b00020;
+    }
+
+    .popupSari {
+      border-top: 18px solid #d98c00;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
     }
   </style>
 </head>
@@ -118,6 +198,12 @@
   <div id="mesaj"></div>
 </div>
 
+<div id="popupOverlay" class="popupOverlay">
+  <div id="popupBox" class="popupBox">
+    <div id="popupContent"></div>
+  </div>
+</div>
+
 <script>
 const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbz3FiotRJ-EjKHg_77lCJyXZ25miLyAgL417oO_5hK3lwws82k2OFz-Wjf77lVaooUwAw/exec";
 
@@ -127,11 +213,61 @@ let qrKilidi = false;
 let sonQrId = "";
 let sonQrZaman = 0;
 let mesajTimer = null;
+let popupTimer = null;
+let audioCtx = null;
 
 function el(id) {
   return document.getElementById(id);
 }
 
+/* SES FONKSİYONLARI */
+function sesHazirla() {
+  try {
+    if (!audioCtx) {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+
+    if (audioCtx.state === "suspended") {
+      audioCtx.resume();
+    }
+  } catch (e) {}
+}
+
+function bip(frekans, sure, gecikme) {
+  try {
+    sesHazirla();
+
+    setTimeout(function() {
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+
+      osc.frequency.value = frekans || 1000;
+      gain.gain.value = 0.35;
+
+      osc.start();
+      osc.stop(audioCtx.currentTime + (sure || 0.18));
+    }, gecikme || 0);
+
+  } catch (e) {}
+}
+
+function bipOkundu() {
+  bip(950, 0.16, 0);
+}
+
+function bipBasarili() {
+  bip(1100, 0.15, 0);
+  bip(1100, 0.15, 230);
+}
+
+function bipHata() {
+  bip(300, 0.25, 0);
+}
+
+/* SAYFA YÜKLENİNCE */
 document.addEventListener("DOMContentLoaded", function() {
   el("btnBaslat").addEventListener("click", kamerayiBaslat);
   el("btnKapat").addEventListener("click", kamerayiKapat);
@@ -144,7 +280,61 @@ document.addEventListener("DOMContentLoaded", function() {
   });
 });
 
+/* POPUP */
+function popupGoster(html, renk, otomatikKapanmaMs) {
+  const overlay = el("popupOverlay");
+  const box = el("popupBox");
+  const content = el("popupContent");
+
+  if (popupTimer) {
+    clearTimeout(popupTimer);
+    popupTimer = null;
+  }
+
+  box.className = "popupBox";
+
+  if (renk === "yesil") {
+    box.classList.add("popupYesil");
+  } else if (renk === "kirmizi") {
+    box.classList.add("popupKirmizi");
+  } else if (renk === "sari") {
+    box.classList.add("popupSari");
+  }
+
+  content.innerHTML = html;
+  overlay.style.display = "flex";
+
+  if (otomatikKapanmaMs && otomatikKapanmaMs > 0) {
+    popupTimer = setTimeout(function() {
+      popupKapat();
+    }, otomatikKapanmaMs);
+  }
+}
+
+function popupKapat() {
+  el("popupOverlay").style.display = "none";
+
+  if (popupTimer) {
+    clearTimeout(popupTimer);
+    popupTimer = null;
+  }
+}
+
+function popupYukleniyor(id) {
+  popupGoster(
+    '<div class="popupLoading"></div>' +
+    '<div class="popupTitle">QR Kod Tarandı</div>' +
+    '<div class="popupText">Giriş kontrol ediliyor...</div>' +
+    '<div class="popupSub">Lütfen bekleyiniz.<br>Okunan ID: ' + escapeHtml(id) + '</div>',
+    "",
+    0
+  );
+}
+
+/* KAMERA */
 async function kamerayiBaslat() {
+  sesHazirla();
+
   el("mesaj").style.display = "none";
   el("durum").textContent = "Ön kamera açılıyor...";
   el("reader").classList.remove("gizli");
@@ -296,6 +486,7 @@ async function kamerayiKapat() {
   kameraAcik = false;
   qrKilidi = false;
 
+  popupKapat();
   arayuzuSifirla();
 }
 
@@ -306,6 +497,7 @@ function arayuzuSifirla() {
   el("btnKapat").classList.add("gizli");
 }
 
+/* QR OKUNDU */
 function qrOkundu(text) {
   if (qrKilidi) return;
 
@@ -313,7 +505,15 @@ function qrOkundu(text) {
 
   if (!id) {
     qrKilidi = true;
-    mesajGoster("❌ Geçersiz QR kod.", "kirmizi", 3000);
+    bipHata();
+
+    popupGoster(
+      '<div class="popupIcon">❌</div>' +
+      '<div class="popupTitle">Geçersiz QR</div>' +
+      '<div class="popupText">Bu QR kod sisteme uygun değil.</div>',
+      "kirmizi",
+      3000
+    );
 
     setTimeout(function() {
       qrDevamEt();
@@ -332,6 +532,8 @@ function qrOkundu(text) {
   sonQrZaman = simdi;
   qrKilidi = true;
 
+  bipOkundu();
+
   try {
     if (scanner) {
       scanner.pause(true);
@@ -340,6 +542,7 @@ function qrOkundu(text) {
 
   el("durum").textContent = "Okunan ID: " + id;
 
+  popupYukleniyor(id);
   apiGirisYap(id, true);
 }
 
@@ -358,26 +561,48 @@ function qrDevamEt() {
   } catch (e) {}
 }
 
+/* MANUEL GİRİŞ */
 function manuelGiris() {
+  sesHazirla();
+
   const metin = String(el("manuelInput").value || "").trim();
   const id = qrMetnindenIdAl(metin);
 
   if (!id) {
-    mesajGoster("❌ Geçerli bir ID veya QR linki girin.", "kirmizi", 3500);
+    bipHata();
+
+    popupGoster(
+      '<div class="popupIcon">❌</div>' +
+      '<div class="popupTitle">Geçersiz ID</div>' +
+      '<div class="popupText">Geçerli bir ID veya QR linki girin.</div>',
+      "kirmizi",
+      3000
+    );
     return;
   }
 
   el("manuelInput").value = "";
   el("durum").textContent = "Okunan ID: " + id;
 
+  bipOkundu();
+  popupYukleniyor(id);
   apiGirisYap(id, false);
 }
 
+/* APPS SCRIPT BAĞLANTISI */
 function apiGirisYap(id, qrModu) {
   id = String(id || "").trim();
 
   if (!id) {
-    mesajGoster("❌ Geçersiz katılımcı ID.", "kirmizi", 3500);
+    bipHata();
+
+    popupGoster(
+      '<div class="popupIcon">❌</div>' +
+      '<div class="popupTitle">Geçersiz ID</div>' +
+      '<div class="popupText">Katılımcı ID boş.</div>',
+      "kirmizi",
+      3500
+    );
 
     if (qrModu) {
       setTimeout(function() {
@@ -421,10 +646,15 @@ function apiGirisYap(id, qrModu) {
   script.onerror = function() {
     setTimeout(function() {
       if (!cevapGeldi) {
-        mesajGoster(
-          "❌ Apps Script bağlantı hatası.<br>Okunan ID: " + escapeHtml(id),
+        bipHata();
+
+        popupGoster(
+          '<div class="popupIcon">❌</div>' +
+          '<div class="popupTitle">Bağlantı Hatası</div>' +
+          '<div class="popupText">Apps Script bağlantısı kurulamadı.</div>' +
+          '<div class="popupSub">Okunan ID: ' + escapeHtml(id) + '</div>',
           "kirmizi",
-          7000
+          6000
         );
 
         if (qrModu) {
@@ -440,10 +670,15 @@ function apiGirisYap(id, qrModu) {
 
   setTimeout(function() {
     if (!cevapGeldi) {
-      mesajGoster(
-        "❌ Apps Script cevap vermedi.<br>Okunan ID: " + escapeHtml(id),
-        "kirmizi",
-        7000
+      bipHata();
+
+      popupGoster(
+        '<div class="popupIcon">⏳</div>' +
+        '<div class="popupTitle">Cevap Alınamadı</div>' +
+        '<div class="popupText">İşlem uzun sürdü. İnternet bağlantısını kontrol edin.</div>' +
+        '<div class="popupSub">Okunan ID: ' + escapeHtml(id) + '</div>',
+        "sari",
+        6000
       );
 
       if (qrModu) {
@@ -453,38 +688,56 @@ function apiGirisYap(id, qrModu) {
   }, 10000);
 }
 
+/* SONUÇ YAZ */
 function sonucYaz(res) {
   if (res && res.durum === "basarili") {
-    mesajGoster(
-      "✅ HOŞ GELDİNİZ<br>" +
+    bipBasarili();
+
+    popupGoster(
+      '<div class="popupIcon">✅</div>' +
+      '<div class="popupTitle">HOŞ GELDİNİZ</div>' +
+      '<div class="popupText">' +
       escapeHtml(res.adSoyad || "") +
-      "<br>" +
+      '<br>' +
       escapeHtml(res.klinik || "") +
-      "<br>" +
-      escapeHtml(res.girisSaati || ""),
+      '</div>' +
+      '<div class="popupSub">' + escapeHtml(res.girisSaati || "") + '</div>',
       "yesil",
-      4200
+      4000
     );
 
   } else if (res && res.durum === "tekrar") {
-    mesajGoster(
-      "⚠️ DAHA ÖNCE GİRİŞ YAPILDI<br>" +
+    bipHata();
+
+    popupGoster(
+      '<div class="popupIcon">⚠️</div>' +
+      '<div class="popupTitle">DAHA ÖNCE GİRİŞ YAPILDI</div>' +
+      '<div class="popupText">' +
       escapeHtml(res.adSoyad || "") +
-      "<br>İlk giriş: " +
-      escapeHtml(res.girisSaati || ""),
+      '<br>' +
+      escapeHtml(res.klinik || "") +
+      '</div>' +
+      '<div class="popupSub">İlk giriş: ' + escapeHtml(res.girisSaati || "") + '</div>',
       "kirmizi",
-      4200
+      4000
     );
 
   } else {
-    mesajGoster(
-      "❌ " + escapeHtml((res && res.mesaj) || "Katılımcı bulunamadı."),
+    bipHata();
+
+    popupGoster(
+      '<div class="popupIcon">❌</div>' +
+      '<div class="popupTitle">Giriş Yapılamadı</div>' +
+      '<div class="popupText">' +
+      escapeHtml((res && res.mesaj) || "Katılımcı bulunamadı.") +
+      '</div>',
       "kirmizi",
-      4200
+      4000
     );
   }
 }
 
+/* QR METNİNDEN ID AL */
 function qrMetnindenIdAl(text) {
   text = String(text || "").trim();
 
@@ -516,6 +769,7 @@ function guvenliDecode(value) {
   }
 }
 
+/* ESKİ MESAJ ALANI */
 function mesajGoster(html, renk, sure) {
   const m = el("mesaj");
 
@@ -537,6 +791,7 @@ function mesajGoster(html, renk, sure) {
   }
 }
 
+/* HTML GÜVENLİK */
 function escapeHtml(value) {
   return String(value || "").replace(/[&<>"']/g, function(s) {
     return {
