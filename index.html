@@ -74,21 +74,6 @@
       display: none;
     }
 
-    .yesil {
-      background: #148f3c;
-      color: white;
-    }
-
-    .kirmizi {
-      background: #b00020;
-      color: white;
-    }
-
-    .sari {
-      background: #d98c00;
-      color: white;
-    }
-
     .gizli {
       display: none;
     }
@@ -120,13 +105,24 @@
     .popupBox {
       width: 100%;
       max-width: 760px;
-      background: white;
-      color: #111;
+      color: white;
       border-radius: 28px;
       padding: 42px 28px;
       box-sizing: border-box;
       text-align: center;
       box-shadow: 0 20px 60px rgba(0,0,0,0.35);
+    }
+
+    .popupMavi {
+      background: #0b4f7a;
+    }
+
+    .popupYesil {
+      background: #148f3c;
+    }
+
+    .popupKirmizi {
+      background: #b00020;
     }
 
     .popupIcon {
@@ -150,29 +146,17 @@
       font-size: clamp(20px, 4vw, 32px);
       margin-top: 18px;
       line-height: 1.35;
-      color: #333;
+      color: rgba(255, 255, 255, 0.92);
     }
 
     .popupLoading {
       width: 70px;
       height: 70px;
-      border: 9px solid #ddd;
-      border-top: 9px solid #0b4f7a;
+      border: 9px solid rgba(255,255,255,0.35);
+      border-top: 9px solid white;
       border-radius: 50%;
       margin: 0 auto 24px;
       animation: spin 1s linear infinite;
-    }
-
-    .popupYesil {
-      border-top: 18px solid #148f3c;
-    }
-
-    .popupKirmizi {
-      border-top: 18px solid #b00020;
-    }
-
-    .popupSari {
-      border-top: 18px solid #d98c00;
     }
 
     @keyframes spin {
@@ -199,7 +183,7 @@
 </div>
 
 <div id="popupOverlay" class="popupOverlay">
-  <div id="popupBox" class="popupBox">
+  <div id="popupBox" class="popupBox popupMavi">
     <div id="popupContent"></div>
   </div>
 </div>
@@ -220,7 +204,6 @@ function el(id) {
   return document.getElementById(id);
 }
 
-/* SES FONKSİYONLARI */
 function sesHazirla() {
   try {
     if (!audioCtx) {
@@ -267,7 +250,6 @@ function bipHata() {
   bip(300, 0.25, 0);
 }
 
-/* SAYFA YÜKLENİNCE */
 document.addEventListener("DOMContentLoaded", function() {
   el("btnBaslat").addEventListener("click", kamerayiBaslat);
   el("btnKapat").addEventListener("click", kamerayiKapat);
@@ -280,7 +262,6 @@ document.addEventListener("DOMContentLoaded", function() {
   });
 });
 
-/* POPUP */
 function popupGoster(html, renk, otomatikKapanmaMs) {
   const overlay = el("popupOverlay");
   const box = el("popupBox");
@@ -297,8 +278,8 @@ function popupGoster(html, renk, otomatikKapanmaMs) {
     box.classList.add("popupYesil");
   } else if (renk === "kirmizi") {
     box.classList.add("popupKirmizi");
-  } else if (renk === "sari") {
-    box.classList.add("popupSari");
+  } else {
+    box.classList.add("popupMavi");
   }
 
   content.innerHTML = html;
@@ -326,12 +307,11 @@ function popupYukleniyor(id) {
     '<div class="popupTitle">QR Kod Tarandı</div>' +
     '<div class="popupText">Giriş kontrol ediliyor...</div>' +
     '<div class="popupSub">Lütfen bekleyiniz.<br>Okunan ID: ' + escapeHtml(id) + '</div>',
-    "",
+    "mavi",
     0
   );
 }
 
-/* KAMERA */
 async function kamerayiBaslat() {
   sesHazirla();
 
@@ -497,7 +477,6 @@ function arayuzuSifirla() {
   el("btnKapat").classList.add("gizli");
 }
 
-/* QR OKUNDU */
 function qrOkundu(text) {
   if (qrKilidi) return;
 
@@ -561,7 +540,6 @@ function qrDevamEt() {
   } catch (e) {}
 }
 
-/* MANUEL GİRİŞ */
 function manuelGiris() {
   sesHazirla();
 
@@ -589,7 +567,6 @@ function manuelGiris() {
   apiGirisYap(id, false);
 }
 
-/* APPS SCRIPT BAĞLANTISI */
 function apiGirisYap(id, qrModu) {
   id = String(id || "").trim();
 
@@ -677,7 +654,7 @@ function apiGirisYap(id, qrModu) {
         '<div class="popupTitle">Cevap Alınamadı</div>' +
         '<div class="popupText">İşlem uzun sürdü. İnternet bağlantısını kontrol edin.</div>' +
         '<div class="popupSub">Okunan ID: ' + escapeHtml(id) + '</div>',
-        "sari",
+        "kirmizi",
         6000
       );
 
@@ -688,7 +665,6 @@ function apiGirisYap(id, qrModu) {
   }, 10000);
 }
 
-/* SONUÇ YAZ */
 function sonucYaz(res) {
   if (res && res.durum === "basarili") {
     bipBasarili();
@@ -737,7 +713,6 @@ function sonucYaz(res) {
   }
 }
 
-/* QR METNİNDEN ID AL */
 function qrMetnindenIdAl(text) {
   text = String(text || "").trim();
 
@@ -769,7 +744,6 @@ function guvenliDecode(value) {
   }
 }
 
-/* ESKİ MESAJ ALANI */
 function mesajGoster(html, renk, sure) {
   const m = el("mesaj");
 
@@ -791,7 +765,6 @@ function mesajGoster(html, renk, sure) {
   }
 }
 
-/* HTML GÜVENLİK */
 function escapeHtml(value) {
   return String(value || "").replace(/[&<>"']/g, function(s) {
     return {
