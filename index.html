@@ -68,7 +68,7 @@
       margin: 24px auto;
       padding: 28px 18px;
       border-radius: 20px;
-      font-size: 36px;
+      font-size: 32px;
       font-weight: bold;
       line-height: 1.3;
       display: none;
@@ -108,11 +108,11 @@
   <h1>INTERHAS ETKİNLİK GİRİŞİ</h1>
   <div id="durum">Hazır</div>
 
-  <button id="btnBaslat">📷 KAMERA İLE QR OKUT</button>
-  <button id="btnKapat" class="kapat gizli">⛔ KAMERAYI KAPAT</button>
+  <button id="btnBaslat" type="button">📷 KAMERA İLE QR OKUT</button>
+  <button id="btnKapat" type="button" class="kapat gizli">⛔ KAMERAYI KAPAT</button>
 
   <input id="manuelInput" placeholder="KAT0001 veya QR linki girin">
-  <button id="btnManuel">⌨️ MANUEL GİRİŞ YAP</button>
+  <button id="btnManuel" type="button">⌨️ MANUEL GİRİŞ YAP</button>
 
   <div id="reader" class="gizli"></div>
   <div id="mesaj"></div>
@@ -175,7 +175,7 @@ async function kamerayiBaslat() {
     scanner = new Html5Qrcode("reader");
 
     await scanner.start(
-      { facingMode: "user" },
+      { facingMode: "environment" },
       config,
       qrOkundu,
       function() {}
@@ -195,7 +195,7 @@ async function kamerayiBaslat() {
       scanner = new Html5Qrcode("reader");
 
       await scanner.start(
-        { facingMode: "environment" },
+        { facingMode: "user" },
         config,
         qrOkundu,
         function() {}
@@ -314,7 +314,7 @@ function qrOkundu(text) {
     }
   } catch (e) {}
 
-  el("durum").textContent = "Kontrol ediliyor: " + id;
+  el("durum").textContent = "Okunan ID: " + id;
 
   apiGirisYap(id, true);
 }
@@ -344,7 +344,7 @@ function manuelGiris() {
   }
 
   el("manuelInput").value = "";
-  el("durum").textContent = "Kontrol ediliyor: " + id;
+  el("durum").textContent = "Okunan ID: " + id;
 
   apiGirisYap(id, false);
 }
@@ -383,27 +383,22 @@ function apiGirisYap(id, qrModu) {
     eski.remove();
   }
 
-  const url =
+  const script = document.createElement("script");
+  script.id = "jsonpScript";
+  script.src =
     WEB_APP_URL +
     "?api=checkin&id=" +
     encodeURIComponent(id) +
     "&callback=scannerCallback&t=" +
     Date.now();
 
-  console.log("Apps Script URL:", url);
-
-  const script = document.createElement("script");
-  script.id = "jsonpScript";
-  script.src = url;
   script.async = true;
 
   script.onerror = function() {
     setTimeout(function() {
       if (!cevapGeldi) {
         mesajGoster(
-          "❌ Apps Script bağlantı hatası.<br><br>Okunan ID: " +
-          escapeHtml(id) +
-          "<br><br>Test için manuel alana bu ID'yi yazıp deneyin.",
+          "❌ Apps Script bağlantı hatası.<br>Okunan ID: " + escapeHtml(id),
           "kirmizi",
           7000
         );
@@ -422,9 +417,7 @@ function apiGirisYap(id, qrModu) {
   setTimeout(function() {
     if (!cevapGeldi) {
       mesajGoster(
-        "❌ Apps Script cevap vermedi.<br><br>Okunan ID: " +
-        escapeHtml(id) +
-        "<br><br>Mobilde bağlantı engellenmiş olabilir.",
+        "❌ Apps Script cevap vermedi.<br>Okunan ID: " + escapeHtml(id),
         "kirmizi",
         7000
       );
@@ -434,33 +427,6 @@ function apiGirisYap(id, qrModu) {
       }
     }
   }, 10000);
-}
-
-  const eski = document.getElementById("jsonpScript");
-  if (eski) {
-    eski.remove();
-  }
-
-  const script = document.createElement("script");
-  script.id = "jsonpScript";
-  script.src =
-    WEB_APP_URL +
-    "?api=checkin&id=" +
-    encodeURIComponent(id) +
-    "&callback=scannerCallback&t=" +
-    Date.now();
-
-  script.onerror = function() {
-    mesajGoster("❌ Apps Script bağlantı hatası.", "kirmizi", 5000);
-
-    if (qrModu) {
-      setTimeout(function() {
-        qrDevamEt();
-      }, 4300);
-    }
-  };
-
-  document.body.appendChild(script);
 }
 
 function sonucYaz(res) {
