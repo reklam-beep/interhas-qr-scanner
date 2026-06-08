@@ -64,6 +64,10 @@
       background: #168a3a;
       color: white;
     }
+    .kirmiziBtn {
+  background: #b00020;
+  color: white;
+}
 
     input {
       width: 100%;
@@ -888,16 +892,25 @@ function aramaSonuclariniYaz(liste) {
     const kart = document.createElement("div");
     kart.className = "sonucKart";
 
+    const girisDurumu = String(k.girisDurumu || "").trim();
+    const girisYapildi = girisDurumu === "Giriş Yaptı";
+
     const bilgi = document.createElement("div");
     bilgi.innerHTML =
       "<b>" + escapeHtml(k.adSoyad || "") + "</b><br>" +
       escapeHtml(k.klinik || "") + "<br>" +
-      "Durum: " + escapeHtml(k.girisDurumu || "Henüz giriş yok");
+      "Durum: " + escapeHtml(girisDurumu || "Henüz giriş yok");
 
     const btn = document.createElement("button");
     btn.type = "button";
-    btn.className = "yesilBtn";
-    btn.textContent = "GİRİŞ YAP";
+
+    if (girisYapildi) {
+      btn.className = "kirmiziBtn";
+      btn.textContent = "GİRİŞ YAPILDI";
+    } else {
+      btn.className = "yesilBtn";
+      btn.textContent = "GİRİŞ YAP";
+    }
 
     btn.addEventListener("click", function() {
       bipOkundu();
