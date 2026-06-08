@@ -60,6 +60,11 @@
       color: white;
     }
 
+    .yesilBtn {
+      background: #168a3a;
+      color: white;
+    }
+
     input {
       width: 100%;
       max-width: 700px;
@@ -94,6 +99,43 @@
       display: none !important;
     }
 
+    .gizli {
+      display: none !important;
+    }
+
+    .aramaBolum {
+      max-width: 700px;
+      margin: 10px auto 0;
+      padding: 12px;
+      border-radius: 16px;
+      background: rgba(255,255,255,0.16);
+      box-sizing: border-box;
+    }
+
+    .aramaBaslik {
+      font-size: clamp(22px, 4vw, 34px);
+      font-weight: bold;
+      margin-bottom: 8px;
+    }
+
+    .sonucKart {
+      background: white;
+      color: #111;
+      padding: 14px;
+      margin: 10px 0;
+      border-radius: 14px;
+      text-align: left;
+      font-size: clamp(19px, 3vw, 28px);
+      line-height: 1.35;
+    }
+
+    .sonucKart button {
+      max-width: 100%;
+      min-height: 50px;
+      font-size: clamp(18px, 3vw, 26px);
+      margin-top: 12px;
+    }
+
     #mesaj {
       max-width: 900px;
       margin: 18px auto;
@@ -103,10 +145,6 @@
       font-weight: bold;
       line-height: 1.3;
       display: none;
-    }
-
-    .gizli {
-      display: none !important;
     }
 
     .popupOverlay {
@@ -132,17 +170,9 @@
       box-shadow: 0 20px 60px rgba(0,0,0,0.35);
     }
 
-    .popupMavi {
-      background: #0b4f7a;
-    }
-
-    .popupYesil {
-      background: #148f3c;
-    }
-
-    .popupKirmizi {
-      background: #b00020;
-    }
+    .popupMavi { background: #0b4f7a; }
+    .popupYesil { background: #148f3c; }
+    .popupKirmizi { background: #b00020; }
 
     .popupIcon {
       font-size: 90px;
@@ -184,9 +214,7 @@
     }
 
     @media (orientation: landscape) {
-      .container {
-        padding: 6px 10px;
-      }
+      .container { padding: 6px 10px; }
 
       h1 {
         font-size: clamp(23px, 3.6vw, 40px);
@@ -218,30 +246,6 @@
         padding: 6px;
       }
     }
-
-    @media (max-height: 820px) {
-      h1 {
-        font-size: clamp(22px, 3.8vw, 38px);
-      }
-
-      #durum {
-        font-size: clamp(15px, 2.4vw, 22px);
-      }
-
-      button {
-        min-height: 40px;
-        margin: 4px auto;
-      }
-
-      input {
-        height: 40px;
-        margin: 4px auto;
-      }
-
-      #reader {
-        max-width: min(640px, 68vh);
-      }
-    }
   </style>
 </head>
 
@@ -254,10 +258,18 @@
   <button id="btnBaslat" type="button">📷 ÖN KAMERA İLE QR OKUT</button>
   <button id="btnKapat" type="button" class="kapat gizli">⛔ KAMERAYI KAPAT</button>
 
-  <input id="manuelInput" placeholder="KAT0001 veya QR linki girin">
-  <button id="btnManuel" type="button">⌨️ MANUEL GİRİŞ YAP</button>
+  <button id="btnIsimAra" type="button">🔎 İSİM İLE ARA</button>
+  <button id="btnKlinikAra" type="button">🏥 KLİNİK İLE ARA</button>
 
   <div id="reader" class="gizli"></div>
+
+  <div id="aramaAlan" class="aramaBolum gizli">
+    <div id="aramaBaslik" class="aramaBaslik">Arama</div>
+    <input id="aramaInput" placeholder="Arama yazın">
+    <button id="btnAra" type="button" class="yesilBtn">ARA</button>
+    <div id="aramaSonuclari"></div>
+  </div>
+
   <div id="mesaj"></div>
 </div>
 
@@ -278,6 +290,8 @@ let sonQrZaman = 0;
 let mesajTimer = null;
 let popupTimer = null;
 let audioCtx = null;
+let aktifAramaTipi = "isim";
+let callbackSayac = 0;
 
 function el(id) {
   return document.getElementById(id);
@@ -288,7 +302,6 @@ function sesHazirla() {
     if (!audioCtx) {
       audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     }
-
     if (audioCtx.state === "suspended") {
       audioCtx.resume();
     }
@@ -298,7 +311,6 @@ function sesHazirla() {
 function bip(frekans, sure, gecikme) {
   try {
     sesHazirla();
-
     setTimeout(function() {
       const osc = audioCtx.createOscillator();
       const gain = audioCtx.createGain();
@@ -312,7 +324,6 @@ function bip(frekans, sure, gecikme) {
       osc.start();
       osc.stop(audioCtx.currentTime + (sure || 0.18));
     }, gecikme || 0);
-
   } catch (e) {}
 }
 
@@ -332,11 +343,20 @@ function bipHata() {
 document.addEventListener("DOMContentLoaded", function() {
   el("btnBaslat").addEventListener("click", kamerayiBaslat);
   el("btnKapat").addEventListener("click", kamerayiKapat);
-  el("btnManuel").addEventListener("click", manuelGiris);
 
-  el("manuelInput").addEventListener("keydown", function(e) {
+  el("btnIsimAra").addEventListener("click", function() {
+    aramaAc("isim");
+  });
+
+  el("btnKlinikAra").addEventListener("click", function() {
+    aramaAc("klinik");
+  });
+
+  el("btnAra").addEventListener("click", ara);
+
+  el("aramaInput").addEventListener("keydown", function(e) {
     if (e.key === "Enter") {
-      manuelGiris();
+      ara();
     }
   });
 });
@@ -391,10 +411,65 @@ function popupYukleniyor(id) {
   );
 }
 
+function jsonpApi(params, callback, hataCallback) {
+  callbackSayac++;
+
+  const callbackName = "interhasCallback_" + Date.now() + "_" + callbackSayac;
+
+  params.callback = callbackName;
+  params.t = Date.now();
+
+  window[callbackName] = function(res) {
+    try {
+      callback(res);
+    } finally {
+      try {
+        delete window[callbackName];
+      } catch (e) {}
+
+      const s = document.getElementById(callbackName);
+      if (s) s.remove();
+    }
+  };
+
+  const query = Object.keys(params).map(function(key) {
+    return encodeURIComponent(key) + "=" + encodeURIComponent(params[key]);
+  }).join("&");
+
+  const script = document.createElement("script");
+  script.id = callbackName;
+  script.src = WEB_APP_URL + "?" + query;
+  script.async = true;
+
+  script.onerror = function() {
+    try {
+      delete window[callbackName];
+    } catch (e) {}
+
+    const s = document.getElementById(callbackName);
+    if (s) s.remove();
+
+    if (typeof hataCallback === "function") {
+      hataCallback();
+    } else {
+      popupGoster(
+        '<div class="popupIcon">❌</div>' +
+        '<div class="popupTitle">Bağlantı Hatası</div>' +
+        '<div class="popupText">Apps Script bağlantısı kurulamadı.</div>',
+        "kirmizi",
+        5000
+      );
+    }
+  };
+
+  document.body.appendChild(script);
+}
+
 async function kamerayiBaslat() {
   sesHazirla();
 
   el("mesaj").style.display = "none";
+  el("aramaAlan").classList.add("gizli");
   el("durum").textContent = "Ön kamera açılıyor...";
   el("reader").classList.remove("gizli");
   el("btnBaslat").classList.add("gizli");
@@ -439,9 +514,7 @@ async function kamerayiBaslat() {
 
   } catch (err1) {
     try {
-      if (scanner) {
-        await scanner.clear();
-      }
+      if (scanner) await scanner.clear();
     } catch (e) {}
 
     try {
@@ -534,15 +607,11 @@ async function kamerayiListeyleBaslat(config) {
 
 async function kamerayiKapat() {
   try {
-    if (scanner) {
-      await scanner.stop();
-    }
+    if (scanner) await scanner.stop();
   } catch (e) {}
 
   try {
-    if (scanner) {
-      await scanner.clear();
-    }
+    if (scanner) await scanner.clear();
   } catch (e) {}
 
   scanner = null;
@@ -605,7 +674,7 @@ function qrOkundu(text) {
   el("durum").textContent = "Okunan ID: " + id;
 
   popupYukleniyor(id);
-  apiGirisYap(id, true);
+  girisYapApi(id, true);
 }
 
 function qrDevamEt() {
@@ -623,34 +692,7 @@ function qrDevamEt() {
   } catch (e) {}
 }
 
-function manuelGiris() {
-  sesHazirla();
-
-  const metin = String(el("manuelInput").value || "").trim();
-  const id = qrMetnindenIdAl(metin);
-
-  if (!id) {
-    bipHata();
-
-    popupGoster(
-      '<div class="popupIcon">❌</div>' +
-      '<div class="popupTitle">Geçersiz ID</div>' +
-      '<div class="popupText">Geçerli bir ID veya QR linki girin.</div>',
-      "kirmizi",
-      3000
-    );
-    return;
-  }
-
-  el("manuelInput").value = "";
-  el("durum").textContent = "Okunan ID: " + id;
-
-  bipOkundu();
-  popupYukleniyor(id);
-  apiGirisYap(id, false);
-}
-
-function apiGirisYap(id, qrModu) {
+function girisYapApi(id, qrModu) {
   id = String(id || "").trim();
 
   if (!id) {
@@ -675,7 +717,10 @@ function apiGirisYap(id, qrModu) {
 
   let cevapGeldi = false;
 
-  window.scannerCallback = function(res) {
+  jsonpApi({
+    api: "checkin",
+    id: id
+  }, function(res) {
     cevapGeldi = true;
 
     sonucYaz(res);
@@ -685,48 +730,26 @@ function apiGirisYap(id, qrModu) {
         qrDevamEt();
       }, 4300);
     }
-  };
+  }, function() {
+    if (!cevapGeldi) {
+      bipHata();
 
-  const eski = document.getElementById("jsonpScript");
-  if (eski) {
-    eski.remove();
-  }
+      popupGoster(
+        '<div class="popupIcon">❌</div>' +
+        '<div class="popupTitle">Bağlantı Hatası</div>' +
+        '<div class="popupText">Apps Script bağlantısı kurulamadı.</div>' +
+        '<div class="popupSub">Okunan ID: ' + escapeHtml(id) + '</div>',
+        "kirmizi",
+        6000
+      );
 
-  const script = document.createElement("script");
-  script.id = "jsonpScript";
-  script.src =
-    WEB_APP_URL +
-    "?api=checkin&id=" +
-    encodeURIComponent(id) +
-    "&callback=scannerCallback&t=" +
-    Date.now();
-
-  script.async = true;
-
-  script.onerror = function() {
-    setTimeout(function() {
-      if (!cevapGeldi) {
-        bipHata();
-
-        popupGoster(
-          '<div class="popupIcon">❌</div>' +
-          '<div class="popupTitle">Bağlantı Hatası</div>' +
-          '<div class="popupText">Apps Script bağlantısı kurulamadı.</div>' +
-          '<div class="popupSub">Okunan ID: ' + escapeHtml(id) + '</div>',
-          "kirmizi",
-          6000
-        );
-
-        if (qrModu) {
-          setTimeout(function() {
-            qrDevamEt();
-          }, 4300);
-        }
+      if (qrModu) {
+        setTimeout(function() {
+          qrDevamEt();
+        }, 4300);
       }
-    }, 1500);
-  };
-
-  document.body.appendChild(script);
+    }
+  });
 
   setTimeout(function() {
     if (!cevapGeldi) {
@@ -796,6 +819,98 @@ function sonucYaz(res) {
   }
 }
 
+async function aramaAc(tip) {
+  await kamerayiKapat();
+
+  aktifAramaTipi = tip;
+
+  el("aramaAlan").classList.remove("gizli");
+  el("aramaSonuclari").innerHTML = "";
+  el("aramaInput").value = "";
+
+  if (tip === "klinik") {
+    el("aramaBaslik").textContent = "Klinik ile ara";
+    el("aramaInput").placeholder = "Klinik adı yazın";
+  } else {
+    el("aramaBaslik").textContent = "İsim ile ara";
+    el("aramaInput").placeholder = "Ad veya soyad yazın";
+  }
+
+  el("durum").textContent = "Arama modu açık";
+
+  setTimeout(function() {
+    el("aramaInput").focus();
+  }, 200);
+}
+
+function ara() {
+  const kelime = String(el("aramaInput").value || "").trim();
+
+  if (!kelime) {
+    popupGoster(
+      '<div class="popupIcon">❌</div>' +
+      '<div class="popupTitle">Arama Boş</div>' +
+      '<div class="popupText">Arama yapmak için bir kelime yazın.</div>',
+      "kirmizi",
+      3000
+    );
+    return;
+  }
+
+  el("aramaSonuclari").innerHTML =
+    '<div class="sonucKart">Aranıyor...</div>';
+
+  jsonpApi({
+    api: "search",
+    tip: aktifAramaTipi,
+    kelime: kelime
+  }, function(res) {
+    if (!res || res.durum !== "basarili") {
+      el("aramaSonuclari").innerHTML =
+        '<div class="sonucKart">❌ ' + escapeHtml((res && res.mesaj) || "Arama yapılamadı.") + '</div>';
+      return;
+    }
+
+    aramaSonuclariniYaz(res.liste || []);
+  });
+}
+
+function aramaSonuclariniYaz(liste) {
+  const alan = el("aramaSonuclari");
+  alan.innerHTML = "";
+
+  if (!liste || liste.length === 0) {
+    alan.innerHTML = '<div class="sonucKart">Sonuç bulunamadı.</div>';
+    return;
+  }
+
+  liste.forEach(function(k) {
+    const kart = document.createElement("div");
+    kart.className = "sonucKart";
+
+    const bilgi = document.createElement("div");
+    bilgi.innerHTML =
+      "<b>" + escapeHtml(k.adSoyad || "") + "</b><br>" +
+      escapeHtml(k.klinik || "") + "<br>" +
+      "Durum: " + escapeHtml(k.girisDurumu || "Henüz giriş yok");
+
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "yesilBtn";
+    btn.textContent = "GİRİŞ YAP";
+
+    btn.addEventListener("click", function() {
+      bipOkundu();
+      popupYukleniyor(k.id);
+      girisYapApi(k.id, false);
+    });
+
+    kart.appendChild(bilgi);
+    kart.appendChild(btn);
+    alan.appendChild(kart);
+  });
+}
+
 function qrMetnindenIdAl(text) {
   text = String(text || "").trim();
 
@@ -836,7 +951,6 @@ function mesajGoster(html, renk, sure) {
   }
 
   m.style.display = "block";
-  m.className = renk;
   m.innerHTML = html;
 
   const bekleme = typeof sure === "number" ? sure : 4500;
