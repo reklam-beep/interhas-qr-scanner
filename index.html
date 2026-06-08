@@ -350,7 +350,25 @@ function manuelGiris() {
 }
 
 function apiGirisYap(id, qrModu) {
+  id = String(id || "").trim();
+
+  if (!id) {
+    mesajGoster("❌ Geçersiz katılımcı ID.", "kirmizi", 3500);
+
+    if (qrModu) {
+      setTimeout(function() {
+        qrDevamEt();
+      }, 3500);
+    }
+
+    return;
+  }
+
+  let cevapGeldi = false;
+
   window.scannerCallback = function(res) {
+    cevapGeldi = true;
+
     sonucYaz(res);
 
     if (qrModu) {
@@ -359,6 +377,64 @@ function apiGirisYap(id, qrModu) {
       }, 4300);
     }
   };
+
+  const eski = document.getElementById("jsonpScript");
+  if (eski) {
+    eski.remove();
+  }
+
+  const url =
+    WEB_APP_URL +
+    "?api=checkin&id=" +
+    encodeURIComponent(id) +
+    "&callback=scannerCallback&t=" +
+    Date.now();
+
+  console.log("Apps Script URL:", url);
+
+  const script = document.createElement("script");
+  script.id = "jsonpScript";
+  script.src = url;
+  script.async = true;
+
+  script.onerror = function() {
+    setTimeout(function() {
+      if (!cevapGeldi) {
+        mesajGoster(
+          "❌ Apps Script bağlantı hatası.<br><br>Okunan ID: " +
+          escapeHtml(id) +
+          "<br><br>Test için manuel alana bu ID'yi yazıp deneyin.",
+          "kirmizi",
+          7000
+        );
+
+        if (qrModu) {
+          setTimeout(function() {
+            qrDevamEt();
+          }, 4300);
+        }
+      }
+    }, 1500);
+  };
+
+  document.body.appendChild(script);
+
+  setTimeout(function() {
+    if (!cevapGeldi) {
+      mesajGoster(
+        "❌ Apps Script cevap vermedi.<br><br>Okunan ID: " +
+        escapeHtml(id) +
+        "<br><br>Mobilde bağlantı engellenmiş olabilir.",
+        "kirmizi",
+        7000
+      );
+
+      if (qrModu) {
+        qrDevamEt();
+      }
+    }
+  }, 10000);
+}
 
   const eski = document.getElementById("jsonpScript");
   if (eski) {
