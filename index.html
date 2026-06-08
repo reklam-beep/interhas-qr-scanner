@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Interhas QR Giriş</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      font-family: Arial, sans-serif;
+      background: #0b4f7a;
+      color: white;
+      text-align: center;
+    }
+
+    .container {
+      padding: 24px;
+      box-sizing: border-box;
+    }
+
+    h1 {
+      font-size: 42px;
+      margin: 20px 0 10px;
+    }
+
+    #durum {
+      font-size: 26px;
+      margin-bottom: 18px;
+    }
+
+    button {
+      width: 100%;
+      max-width: 800px;
+      min-height: 72px;
+      margin: 10px auto;
+      display: block;
+      font-size: 28px;
+      font-weight: bold;
+      border: none;
+      border-radius: 16px;
+      background: white;
+      color: #0b4f7a;
+      cursor: pointer;
+    }
+
+    .kapat {
+      background: #b00020;
+      color: white;
+    }
+
+    #reader {
+      width: 100%;
+      max-width: 760px;
+      margin: 20px auto;
+      background: white;
+      padding: 12px;
+      border-radius: 18px;
+      color: #111;
+      box-sizing: border-box;
+    }
+
+    #mesaj {
+      max-width: 900px;
+      margin: 24px auto;
+      padding: 28px 18px;
+      border-radius: 20px;
+      font-size: 36px;
+      font-weight: bold;
+      line-height: 1.3;
+      display: none;
+    }
+
+    .yesil {
+      background: #148f3c;
+      color: white;
+    }
+
+    .kirmizi {
+      background: #b00020;
+      color: white;
+    }
+
+    .gizli {
+      display: none;
+    }
+
+    input {
+      width: 100%;
+      max-width: 800px;
+      height: 64px;
+      font-size: 28px;
+      padding: 8px 14px;
+      border-radius: 12px;
+      border: none;
+      box-sizing: border-box;
+      margin-top: 18px;
+    }
+  </style>
+</head>
+
+<body>
+
+<div class="container">
+  <h1>INTERHAS ETKİNLİK GİRİŞİ</h1>
+  <div id="durum">Hazır</div>
+
+  <button id="btnBaslat">📷 KAMERA İLE QR OKUT</button>
+  <button id="btnKapat" class="kapat gizli">⛔ KAMERAYI KAPAT</button>
+
+  <input id="manuelInput" placeholder="KAT0001 veya QR linki girin">
+  <button id="btnManuel">⌨️ MANUEL GİRİŞ YAP</button>
+
+  <div id="reader" class="gizli"></div>
+  <div id="mesaj"></div>
+</div>
+
+<script>
+const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbz3FiotRJ-EjKHg_77lCJyXZ25miLyAgL417oO_5hK3lwws82k2OFz-Wjf77lVaooUwAw/exec";
+
+let scanner = null;
+let kameraAcik = false;
+let qrKilidi = false;
+let sonQrId = "";
+let sonQrZaman = 0;
+let mesajTimer = null;
+
+function el(id) {
+  return document.getElementById(id);
+}
+
+document.addEventListener("DOMContentLoaded", function() {
+  el("btnBaslat").addEventListener("click", kamerayiBaslat);
+  el("btnKapat").addEventListener("click", kamerayiKapat);
+  el("btnManuel").addEventListener("click", manuelGiris);
+
+  el("manuelInput").addEventListener("keydown", function(e) {
+    if (e.key === "Enter") {
+      manuelGiris();
+    }
+  });
+});
+
+async function kamerayiBaslat() {
+  el("mesaj").style.display = "none";
+  el("durum").textContent = "Kamera açılıyor...";
+  el("reader").classList.remove("gizli");
+  el("btnBaslat").classList.add("gizli");
+  el("btnKapat").classList.remove("gizli");
+
+  qrKilidi = false;
+  sonQrId = "";
+  sonQrZaman = 0;
+
+  if (typeof Html5Qrcode === "undefined") {
+    mesajGoster("❌ QR okuyucu yüklenemedi. İnternet bağlantısını kontrol edin.", "kirmizi", 6000);
+    arayuzuSifirla();
+    return;
+  }
+
+  const config = {
+    fps: 10,
+    qrbox: function(width, height) {
+      const minEdge = Math.min(width, height);
+      const size = Math.floor(minEdge * 0.72);
+      return { width: size, height: size };
+    },
+    disableFlip: false
+  };
+
+  try {
+    scanner = new Html5Qrcode("reader");
+
+    await scanner.start(
+      { facingMode: "user" },
+      config,
+      qrOkundu,
+      function() {}
+    );
+
+    kameraAcik = true;
+    el("durum").textContent = "Kamera açık. QR kodu okutun.";
+
+  } catch (err1) {
+    try {
+      if (scanner) {
+        await scanner.clear();
+      }
+    } catch (e) {}
+
+    try {
+      scanner = new Html5Qrcode("reader");
+
+      await scanner.start(
+        { facingMode: "environment" },
+        config,
+        qrOkundu,
+        function() {}
+      );
+
+      kameraAcik = true;
+      el("durum").textContent = "Kamera açık. QR kodu okutun.";
+
+    } catch (err2) {
+      try {
+        await kamerayiListeyleBaslat(config);
+        kameraAcik = true;
+        el("durum").textContent = "Kamera açık. QR kodu okutun.";
+      } catch (err3) {
+        mesajGoster("❌ Kamera açılamadı.<br>Hata: " + escapeHtml(err3.message || err3), "kirmizi", 9000);
+        arayuzuSifirla();
+      }
+    }
+  }
+}
+
+async function kamerayiListeyleBaslat(config) {
+  const cameras = await Html5Qrcode.getCameras();
+
+  if (!cameras || cameras.length === 0) {
+    throw new Error("Kamera bulunamadı.");
+  }
+
+  let sonHata = null;
+
+  for (let i = 0; i < cameras.length; i++) {
+    try {
+      if (scanner) {
+        try {
+          await scanner.clear();
+        } catch (e) {}
+      }
+
+      scanner = new Html5Qrcode("reader");
+
+      el("durum").textContent = "Kamera deneniyor: " + (cameras[i].label || ("Kamera " + (i + 1)));
+
+      await scanner.start(
+        cameras[i].id,
+        config,
+        qrOkundu,
+        function() {}
+      );
+
+      return;
+
+    } catch (err) {
+      sonHata = err;
+    }
+  }
+
+  throw sonHata || new Error("Hiçbir kamera açılamadı.");
+}
+
+async function kamerayiKapat() {
+  try {
+    if (scanner) {
+      await scanner.stop();
+    }
+  } catch (e) {}
+
+  try {
+    if (scanner) {
+      await scanner.clear();
+    }
+  } catch (e) {}
+
+  scanner = null;
+  kameraAcik = false;
+  qrKilidi = false;
+
+  arayuzuSifirla();
+}
+
+function arayuzuSifirla() {
+  el("durum").textContent = "Hazır";
+  el("reader").classList.add("gizli");
+  el("btnBaslat").classList.remove("gizli");
+  el("btnKapat").classList.add("gizli");
+}
+
+function qrOkundu(text) {
+  if (qrKilidi) return;
+
+  const id = qrMetnindenIdAl(text);
+
+  if (!id) {
+    qrKilidi = true;
+    mesajGoster("❌ Geçersiz QR kod.", "kirmizi", 3000);
+
+    setTimeout(function() {
+      qrDevamEt();
+    }, 3000);
+
+    return;
+  }
+
+  const simdi = Date.now();
+
+  if (id === sonQrId && simdi - sonQrZaman < 8000) {
+    return;
+  }
+
+  sonQrId = id;
+  sonQrZaman = simdi;
+  qrKilidi = true;
+
+  try {
+    if (scanner) {
+      scanner.pause(true);
+    }
+  } catch (e) {}
+
+  el("durum").textContent = "Kontrol ediliyor: " + id;
+
+  apiGirisYap(id, true);
+}
+
+function qrDevamEt() {
+  qrKilidi = false;
+
+  if (!scanner || !kameraAcik) {
+    el("durum").textContent = "Hazır";
+    return;
+  }
+
+  el("durum").textContent = "Kamera açık. Yeni QR kodu okutun.";
+
+  try {
+    scanner.resume();
+  } catch (e) {}
+}
+
+function manuelGiris() {
+  const metin = String(el("manuelInput").value || "").trim();
+  const id = qrMetnindenIdAl(metin);
+
+  if (!id) {
+    mesajGoster("❌ Geçerli bir ID veya QR linki girin.", "kirmizi", 3500);
+    return;
+  }
+
+  el("manuelInput").value = "";
+  el("durum").textContent = "Kontrol ediliyor: " + id;
+
+  apiGirisYap(id, false);
+}
+
+function apiGirisYap(id, qrModu) {
+  window.scannerCallback = function(res) {
+    sonucYaz(res);
+
+    if (qrModu) {
+      setTimeout(function() {
+        qrDevamEt();
+      }, 4300);
+    }
+  };
+
+  const eski = document.getElementById("jsonpScript");
+  if (eski) {
+    eski.remove();
+  }
+
+  const script = document.createElement("script");
+  script.id = "jsonpScript";
+  script.src =
+    WEB_APP_URL +
+    "?api=checkin&id=" +
+    encodeURIComponent(id) +
+    "&callback=scannerCallback&t=" +
+    Date.now();
+
+  script.onerror = function() {
+    mesajGoster("❌ Apps Script bağlantı hatası.", "kirmizi", 5000);
+
+    if (qrModu) {
+      setTimeout(function() {
+        qrDevamEt();
+      }, 4300);
+    }
+  };
+
+  document.body.appendChild(script);
+}
+
+function sonucYaz(res) {
+  if (res && res.durum === "basarili") {
+    mesajGoster(
+      "✅ HOŞ GELDİNİZ<br>" +
+      escapeHtml(res.adSoyad || "") +
+      "<br>" +
+      escapeHtml(res.klinik || "") +
+      "<br>" +
+      escapeHtml(res.girisSaati || ""),
+      "yesil",
+      4200
+    );
+
+  } else if (res && res.durum === "tekrar") {
+    mesajGoster(
+      "⚠️ DAHA ÖNCE GİRİŞ YAPILDI<br>" +
+      escapeHtml(res.adSoyad || "") +
+      "<br>İlk giriş: " +
+      escapeHtml(res.girisSaati || ""),
+      "kirmizi",
+      4200
+    );
+
+  } else {
+    mesajGoster(
+      "❌ " + escapeHtml((res && res.mesaj) || "Katılımcı bulunamadı."),
+      "kirmizi",
+      4200
+    );
+  }
+}
+
+function qrMetnindenIdAl(text) {
+  text = String(text || "").trim();
+
+  try {
+    if (text.indexOf("http") === 0) {
+      const url = new URL(text);
+      const id = url.searchParams.get("id");
+
+      if (id) {
+        return guvenliDecode(id).trim();
+      }
+    }
+  } catch (e) {}
+
+  if (text.indexOf("id=") > -1) {
+    return guvenliDecode(text.split("id=")[1].split("&")[0]).trim();
+  }
+
+  return guvenliDecode(text).trim();
+}
+
+function guvenliDecode(value) {
+  value = String(value || "");
+
+  try {
+    return decodeURIComponent(value);
+  } catch (e) {
+    return value;
+  }
+}
+
+function mesajGoster(html, renk, sure) {
+  const m = el("mesaj");
+
+  if (mesajTimer) {
+    clearTimeout(mesajTimer);
+    mesajTimer = null;
+  }
+
+  m.style.display = "block";
+  m.className = renk;
+  m.innerHTML = html;
+
+  const bekleme = typeof sure === "number" ? sure : 4500;
+
+  if (bekleme > 0) {
+    mesajTimer = setTimeout(function() {
+      m.style.display = "none";
+    }, bekleme);
+  }
+}
+
+function escapeHtml(value) {
+  return String(value || "").replace(/[&<>"']/g, function(s) {
+    return {
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      '"': "&quot;",
+      "'": "&#039;"
+    }[s];
+  });
+}
+</script>
+
+</body>
+</html>
