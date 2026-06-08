@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <title>Interhas QR Giriş</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 
   <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 
@@ -11,37 +11,45 @@
     html, body {
       margin: 0;
       padding: 0;
+      width: 100%;
+      min-height: 100%;
       font-family: Arial, sans-serif;
       background: #0b4f7a;
       color: white;
       text-align: center;
+      overflow-x: hidden;
     }
 
     .container {
-      padding: 24px;
+      width: 100%;
+      min-height: 100vh;
+      padding: 18px;
       box-sizing: border-box;
     }
 
     h1 {
-      font-size: 42px;
-      margin: 20px 0 10px;
+      font-size: clamp(28px, 5vw, 48px);
+      margin: 12px 0 6px;
+      font-weight: bold;
+      line-height: 1.1;
     }
 
     #durum {
-      font-size: 26px;
-      margin-bottom: 18px;
+      font-size: clamp(18px, 3vw, 28px);
+      margin-bottom: 12px;
+      min-height: 30px;
     }
 
     button {
       width: 100%;
-      max-width: 800px;
-      min-height: 72px;
-      margin: 10px auto;
+      max-width: 760px;
+      min-height: 58px;
+      margin: 8px auto;
       display: block;
-      font-size: 28px;
+      font-size: clamp(20px, 3.5vw, 30px);
       font-weight: bold;
       border: none;
-      border-radius: 16px;
+      border-radius: 14px;
       background: white;
       color: #0b4f7a;
       cursor: pointer;
@@ -52,42 +60,80 @@
       color: white;
     }
 
+    input {
+      width: 100%;
+      max-width: 760px;
+      height: 58px;
+      font-size: clamp(20px, 3.5vw, 28px);
+      padding: 8px 14px;
+      border-radius: 12px;
+      border: none;
+      box-sizing: border-box;
+      margin: 8px auto;
+      display: block;
+    }
+
     #reader {
       width: 100%;
       max-width: 760px;
-      margin: 20px auto;
+      height: min(52vh, 520px);
+      margin: 12px auto 0;
       background: white;
-      padding: 12px;
+      padding: 8px;
       border-radius: 18px;
       color: #111;
       box-sizing: border-box;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    #reader video {
+      width: 100% !important;
+      height: 100% !important;
+      object-fit: cover !important;
+      border-radius: 12px;
+    }
+
+    #reader canvas {
+      max-width: 100% !important;
+      max-height: 100% !important;
+    }
+
+    #reader > div {
+      width: 100% !important;
+      height: 100% !important;
+    }
+
+    #reader__scan_region {
+      width: 100% !important;
+      height: 100% !important;
+    }
+
+    #reader__scan_region video {
+      width: 100% !important;
+      height: 100% !important;
+      object-fit: cover !important;
+    }
+
+    #reader__dashboard {
+      display: none !important;
     }
 
     #mesaj {
       max-width: 900px;
-      margin: 24px auto;
-      padding: 28px 18px;
+      margin: 18px auto;
+      padding: 22px 16px;
       border-radius: 20px;
-      font-size: 32px;
+      font-size: 28px;
       font-weight: bold;
       line-height: 1.3;
       display: none;
     }
 
     .gizli {
-      display: none;
-    }
-
-    input {
-      width: 100%;
-      max-width: 800px;
-      height: 64px;
-      font-size: 28px;
-      padding: 8px 14px;
-      border-radius: 12px;
-      border: none;
-      box-sizing: border-box;
-      margin-top: 18px;
+      display: none !important;
     }
 
     .popupOverlay {
@@ -162,6 +208,67 @@
     @keyframes spin {
       0% { transform: rotate(0deg); }
       100% { transform: rotate(360deg); }
+    }
+
+    @media (orientation: landscape) {
+      .container {
+        padding: 12px;
+      }
+
+      h1 {
+        font-size: clamp(24px, 4vw, 42px);
+        margin-top: 8px;
+      }
+
+      #durum {
+        font-size: clamp(16px, 2.5vw, 24px);
+        margin-bottom: 8px;
+      }
+
+      button {
+        min-height: 48px;
+        margin: 6px auto;
+        font-size: clamp(18px, 2.8vw, 26px);
+      }
+
+      input {
+        height: 50px;
+        margin: 6px auto;
+        font-size: clamp(18px, 2.8vw, 24px);
+      }
+
+      #reader {
+        height: min(48vh, 440px);
+        margin-top: 8px;
+      }
+    }
+
+    @media (max-width: 600px) {
+      .container {
+        padding: 12px;
+      }
+
+      h1 {
+        font-size: 28px;
+      }
+
+      #durum {
+        font-size: 18px;
+      }
+
+      button {
+        min-height: 52px;
+        font-size: 20px;
+      }
+
+      input {
+        height: 52px;
+        font-size: 20px;
+      }
+
+      #reader {
+        height: min(48vh, 420px);
+      }
     }
   </style>
 </head>
@@ -335,10 +442,11 @@ async function kamerayiBaslat() {
     fps: 10,
     qrbox: function(width, height) {
       const minEdge = Math.min(width, height);
-      const size = Math.floor(minEdge * 0.72);
+      const size = Math.floor(minEdge * 0.58);
       return { width: size, height: size };
     },
-    disableFlip: false
+    disableFlip: false,
+    aspectRatio: 1.333334
   };
 
   try {
