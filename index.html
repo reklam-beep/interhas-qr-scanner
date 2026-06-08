@@ -108,7 +108,7 @@
   <h1>INTERHAS ETKİNLİK GİRİŞİ</h1>
   <div id="durum">Hazır</div>
 
-  <button id="btnBaslat" type="button">📷 KAMERA İLE QR OKUT</button>
+  <button id="btnBaslat" type="button">📷 ÖN KAMERA İLE QR OKUT</button>
   <button id="btnKapat" type="button" class="kapat gizli">⛔ KAMERAYI KAPAT</button>
 
   <input id="manuelInput" placeholder="KAT0001 veya QR linki girin">
@@ -146,7 +146,7 @@ document.addEventListener("DOMContentLoaded", function() {
 
 async function kamerayiBaslat() {
   el("mesaj").style.display = "none";
-  el("durum").textContent = "Kamera açılıyor...";
+  el("durum").textContent = "Ön kamera açılıyor...";
   el("reader").classList.remove("gizli");
   el("btnBaslat").classList.add("gizli");
   el("btnKapat").classList.remove("gizli");
@@ -175,14 +175,14 @@ async function kamerayiBaslat() {
     scanner = new Html5Qrcode("reader");
 
     await scanner.start(
-      { facingMode: "environment" },
+      { facingMode: "user" },
       config,
       qrOkundu,
       function() {}
     );
 
     kameraAcik = true;
-    el("durum").textContent = "Kamera açık. QR kodu okutun.";
+    el("durum").textContent = "Ön kamera açık. QR kodu okutun.";
 
   } catch (err1) {
     try {
@@ -195,14 +195,14 @@ async function kamerayiBaslat() {
       scanner = new Html5Qrcode("reader");
 
       await scanner.start(
-        { facingMode: "user" },
+        { facingMode: "environment" },
         config,
         qrOkundu,
         function() {}
       );
 
       kameraAcik = true;
-      el("durum").textContent = "Kamera açık. QR kodu okutun.";
+      el("durum").textContent = "Arka kamera açık. QR kodu okutun.";
 
     } catch (err2) {
       try {
@@ -226,7 +226,30 @@ async function kamerayiListeyleBaslat(config) {
 
   let sonHata = null;
 
-  for (let i = 0; i < cameras.length; i++) {
+  const siraliKameralar = cameras.slice().sort(function(a, b) {
+    const aLabel = String(a.label || "").toLowerCase();
+    const bLabel = String(b.label || "").toLowerCase();
+
+    const aOn =
+      aLabel.includes("front") ||
+      aLabel.includes("user") ||
+      aLabel.includes("selfie") ||
+      aLabel.includes("ön") ||
+      aLabel.includes("on");
+
+    const bOn =
+      bLabel.includes("front") ||
+      bLabel.includes("user") ||
+      bLabel.includes("selfie") ||
+      bLabel.includes("ön") ||
+      bLabel.includes("on");
+
+    if (aOn && !bOn) return -1;
+    if (!aOn && bOn) return 1;
+    return 0;
+  });
+
+  for (let i = 0; i < siraliKameralar.length; i++) {
     try {
       if (scanner) {
         try {
@@ -236,10 +259,11 @@ async function kamerayiListeyleBaslat(config) {
 
       scanner = new Html5Qrcode("reader");
 
-      el("durum").textContent = "Kamera deneniyor: " + (cameras[i].label || ("Kamera " + (i + 1)));
+      el("durum").textContent =
+        "Kamera deneniyor: " + (siraliKameralar[i].label || ("Kamera " + (i + 1)));
 
       await scanner.start(
-        cameras[i].id,
+        siraliKameralar[i].id,
         config,
         qrOkundu,
         function() {}
