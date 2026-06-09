@@ -140,6 +140,44 @@
       margin-top: 12px;
     }
 
+    .statGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.statBox {
+  background: #0b4f7a;
+  color: white;
+  border-radius: 14px;
+  padding: 18px 10px;
+  text-align: center;
+}
+
+.statNumber {
+  font-size: clamp(34px, 6vw, 54px);
+  font-weight: bold;
+  line-height: 1;
+}
+
+.statLabel {
+  font-size: clamp(16px, 3vw, 24px);
+  margin-top: 8px;
+}
+
+.statGreen {
+  background: #148f3c;
+}
+
+.statRed {
+  background: #b00020;
+}
+
+.statOrange {
+  background: #d98c00;
+}
+
     #mesaj {
       max-width: 900px;
       margin: 18px auto;
@@ -267,14 +305,24 @@
 
   <div id="reader" class="gizli"></div>
 
-  <div id="aramaAlan" class="aramaBolum gizli">
-    <div id="aramaBaslik" class="aramaBaslik">Arama</div>
-    <input id="aramaInput" placeholder="Arama yazın">
-    <button id="btnAra" type="button" class="yesilBtn">ARA</button>
-    <div id="aramaSonuclari"></div>
+<div id="aramaAlan" class="aramaBolum gizli">
+  <div id="aramaBaslik" class="aramaBaslik">Arama</div>
+  <input id="aramaInput" placeholder="Arama yazın">
+  <button id="btnAra" type="button" class="yesilBtn">ARA</button>
+  <div id="aramaSonuclari"></div>
+</div>
+
+<div id="dashboardAlan" class="aramaBolum gizli">
+  <div class="aramaBaslik">Dashboard</div>
+
+  <div id="dashboardIcerik" class="sonucKart">
+    Veriler yükleniyor...
   </div>
 
-  <div id="mesaj"></div>
+  <button id="btnDashboardYenile" type="button" class="yesilBtn">🔄 YENİLE</button>
+</div>
+
+<div id="mesaj"></div>
 </div>
 
 <div id="popupOverlay" class="popupOverlay">
@@ -355,6 +403,9 @@ document.addEventListener("DOMContentLoaded", function() {
   el("btnKlinikAra").addEventListener("click", function() {
     aramaAc("klinik");
   });
+
+  el("btnDashboard").addEventListener("click", dashboardAc);
+el("btnDashboardYenile").addEventListener("click", dashboardVerileriniGetir);
 
   el("btnAra").addEventListener("click", ara);
 
@@ -474,6 +525,7 @@ async function kamerayiBaslat() {
 
   el("mesaj").style.display = "none";
   el("aramaAlan").classList.add("gizli");
+  el("dashboardAlan").classList.add("gizli");
   el("durum").textContent = "Ön kamera açılıyor...";
   el("reader").classList.remove("gizli");
   el("btnBaslat").classList.add("gizli");
@@ -828,6 +880,7 @@ async function aramaAc(tip) {
 
   aktifAramaTipi = tip;
 
+  el("dashboardAlan").classList.add("gizli");
   el("aramaAlan").classList.remove("gizli");
   el("aramaSonuclari").innerHTML = "";
   el("aramaInput").value = "";
@@ -847,6 +900,74 @@ async function aramaAc(tip) {
   }, 200);
 }
 
+  async function dashboardAc() {
+  await kamerayiKapat();
+
+  el("aramaAlan").classList.add("gizli");
+  el("dashboardAlan").classList.remove("gizli");
+
+  el("durum").textContent = "Dashboard açık";
+  el("dashboardIcerik").innerHTML = "Veriler yükleniyor...";
+
+  dashboardVerileriniGetir();
+}
+
+function dashboardVerileriniGetir() {
+  el("dashboardIcerik").innerHTML = "Veriler yükleniyor...";
+
+  jsonpApi({
+    api: "stats"
+  }, function(res) {
+    if (!res || res.durum !== "basarili") {
+      el("dashboardIcerik").innerHTML =
+        "❌ " + escapeHtml((res && res.mesaj) || "Dashboard verisi alınamadı.");
+      return;
+    }
+
+    dashboardYaz(res);
+  }, function() {
+    el("dashboardIcerik").innerHTML =
+      "❌ Apps Script bağlantı hatası.";
+  });
+}
+
+function dashboardYaz(res) {
+  el("dashboardIcerik").innerHTML =
+    '<div class="statGrid">' +
+
+      '<div class="statBox">' +
+        '<div class="statNumber">' + escapeHtml(res.toplam) + '</div>' +
+        '<div class="statLabel">Toplam Kayıt</div>' +
+      '</div>' +
+
+      '<div class="statBox statGreen">' +
+        '<div class="statNumber">' + escapeHtml(res.girisYapti) + '</div>' +
+        '<div class="statLabel">Giriş Yaptı</div>' +
+      '</div>' +
+
+      '<div class="statBox statRed">' +
+        '<div class="statNumber">' + escapeHtml(res.girisYapmadi) + '</div>' +
+        '<div class="statLabel">Giriş Yapmadı</div>' +
+      '</div>' +
+
+      '<div class="statBox statOrange">' +
+        '<div class="statNumber">%' + escapeHtml(res.oran) + '</div>' +
+        '<div class="statLabel">Giriş Oranı</div>' +
+      '</div>' +
+
+      '<div class="statBox">' +
+        '<div class="statNumber">' + escapeHtml(res.katiliyor) + '</div>' +
+        '<div class="statLabel">Katılıyor</div>' +
+      '</div>' +
+
+      '<div class="statBox statRed">' +
+        '<div class="statNumber">' + escapeHtml(res.katilmiyor) + '</div>' +
+        '<div class="statLabel">Katılmıyor</div>' +
+      '</div>' +
+
+    '</div>';
+}
+  
 function ara() {
   const kelime = String(el("aramaInput").value || "").trim();
 
