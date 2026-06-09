@@ -213,9 +213,17 @@
       box-shadow: 0 20px 60px rgba(0,0,0,0.35);
     }
 
-    .popupMavi { background: #0b4f7a; }
-    .popupYesil { background: #148f3c; }
-    .popupKirmizi { background: #b00020; }
+    .popupMavi {
+      background: #0b4f7a;
+    }
+
+    .popupYesil {
+      background: #148f3c;
+    }
+
+    .popupKirmizi {
+      background: #b00020;
+    }
 
     .popupIcon {
       font-size: 90px;
@@ -257,7 +265,9 @@
     }
 
     @media (orientation: landscape) {
-      .container { padding: 6px 10px; }
+      .container {
+        padding: 6px 10px;
+      }
 
       h1 {
         font-size: clamp(23px, 3.6vw, 40px);
@@ -298,7 +308,8 @@
   <h1>INTERHAS ETKİNLİK GİRİŞİ</h1>
   <div id="durum">Hazır</div>
 
-  <button id="btnBaslat" type="button">📷 ÖN KAMERA İLE QR OKUT</button>
+  <button id="btnOnKamera" type="button">📷 ÖN KAMERA İLE QR OKUT</button>
+  <button id="btnArkaKamera" type="button">📷 ARKA KAMERA İLE QR OKUT</button>
   <button id="btnKapat" type="button" class="kapat gizli">⛔ KAMERAYI KAPAT</button>
 
   <button id="btnIsimAra" type="button">🔎 İSİM İLE ARA</button>
@@ -352,6 +363,7 @@ function sesHazirla() {
     if (!audioCtx) {
       audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     }
+
     if (audioCtx.state === "suspended") {
       audioCtx.resume();
     }
@@ -361,6 +373,7 @@ function sesHazirla() {
 function bip(frekans, sure, gecikme) {
   try {
     sesHazirla();
+
     setTimeout(function() {
       const osc = audioCtx.createOscillator();
       const gain = audioCtx.createGain();
@@ -374,6 +387,7 @@ function bip(frekans, sure, gecikme) {
       osc.start();
       osc.stop(audioCtx.currentTime + (sure || 0.18));
     }, gecikme || 0);
+
   } catch (e) {}
 }
 
@@ -391,7 +405,14 @@ function bipHata() {
 }
 
 document.addEventListener("DOMContentLoaded", function() {
-  el("btnBaslat").addEventListener("click", kamerayiBaslat);
+  el("btnOnKamera").addEventListener("click", function() {
+    kamerayiBaslat("user");
+  });
+
+  el("btnArkaKamera").addEventListener("click", function() {
+    kamerayiBaslat("environment");
+  });
+
   el("btnKapat").addEventListener("click", kamerayiKapat);
 
   el("btnIsimAra").addEventListener("click", function() {
@@ -518,15 +539,21 @@ function jsonpApi(params, callback, hataCallback) {
   document.body.appendChild(script);
 }
 
-async function kamerayiBaslat() {
+async function kamerayiBaslat(kameraTipi) {
   sesHazirla();
 
   el("mesaj").style.display = "none";
   el("aramaAlan").classList.add("gizli");
   el("dashboardAlan").classList.add("gizli");
-  el("durum").textContent = "Ön kamera açılıyor...";
+
+  el("durum").textContent =
+    kameraTipi === "environment"
+      ? "Arka kamera açılıyor..."
+      : "Ön kamera açılıyor...";
+
   el("reader").classList.remove("gizli");
-  el("btnBaslat").classList.add("gizli");
+  el("btnOnKamera").classList.add("gizli");
+  el("btnArkaKamera").classList.add("gizli");
   el("btnKapat").classList.remove("gizli");
 
   qrKilidi = false;
@@ -553,14 +580,18 @@ async function kamerayiBaslat() {
     scanner = new Html5Qrcode("reader");
 
     await scanner.start(
-      { facingMode: "user" },
+      { facingMode: kameraTipi || "user" },
       config,
       qrOkundu,
       function() {}
     );
 
     kameraAcik = true;
-    el("durum").textContent = "Ön kamera açık. QR kodu okutun.";
+
+    el("durum").textContent =
+      kameraTipi === "environment"
+        ? "Arka kamera açık. QR kodu okutun."
+        : "Ön kamera açık. QR kodu okutun.";
 
   } catch (err1) {
     try {
@@ -570,15 +601,21 @@ async function kamerayiBaslat() {
     try {
       scanner = new Html5Qrcode("reader");
 
+      const yedekKameraTipi = kameraTipi === "environment" ? "user" : "environment";
+
       await scanner.start(
-        { facingMode: "environment" },
+        { facingMode: yedekKameraTipi },
         config,
         qrOkundu,
         function() {}
       );
 
       kameraAcik = true;
-      el("durum").textContent = "Arka kamera açık. QR kodu okutun.";
+
+      el("durum").textContent =
+        yedekKameraTipi === "environment"
+          ? "Arka kamera açık. QR kodu okutun."
+          : "Ön kamera açık. QR kodu okutun.";
 
     } catch (err2) {
       try {
@@ -675,7 +712,8 @@ async function kamerayiKapat() {
 function arayuzuSifirla() {
   el("durum").textContent = "Hazır";
   el("reader").classList.add("gizli");
-  el("btnBaslat").classList.remove("gizli");
+  el("btnOnKamera").classList.remove("gizli");
+  el("btnArkaKamera").classList.remove("gizli");
   el("btnKapat").classList.add("gizli");
 }
 
