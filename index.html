@@ -64,10 +64,11 @@
       background: #168a3a;
       color: white;
     }
+
     .kirmiziBtn {
-  background: #b00020;
-  color: white;
-}
+      background: #b00020;
+      color: white;
+    }
 
     input {
       width: 100%;
@@ -107,7 +108,7 @@
       display: none !important;
     }
 
-    .aramaBolum {
+    .panelBolum {
       max-width: 700px;
       margin: 10px auto 0;
       padding: 12px;
@@ -116,7 +117,7 @@
       box-sizing: border-box;
     }
 
-    .aramaBaslik {
+    .bolumBaslik {
       font-size: clamp(22px, 4vw, 34px);
       font-weight: bold;
       margin-bottom: 8px;
@@ -141,42 +142,42 @@
     }
 
     .statGrid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 12px;
-  margin-top: 12px;
-}
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+      margin-top: 12px;
+    }
 
-.statBox {
-  background: #0b4f7a;
-  color: white;
-  border-radius: 14px;
-  padding: 18px 10px;
-  text-align: center;
-}
+    .statBox {
+      background: #0b4f7a;
+      color: white;
+      border-radius: 14px;
+      padding: 18px 10px;
+      text-align: center;
+    }
 
-.statNumber {
-  font-size: clamp(34px, 6vw, 54px);
-  font-weight: bold;
-  line-height: 1;
-}
+    .statNumber {
+      font-size: clamp(34px, 6vw, 54px);
+      font-weight: bold;
+      line-height: 1;
+    }
 
-.statLabel {
-  font-size: clamp(16px, 3vw, 24px);
-  margin-top: 8px;
-}
+    .statLabel {
+      font-size: clamp(16px, 3vw, 24px);
+      margin-top: 8px;
+    }
 
-.statGreen {
-  background: #148f3c;
-}
+    .statGreen {
+      background: #148f3c;
+    }
 
-.statRed {
-  background: #b00020;
-}
+    .statRed {
+      background: #b00020;
+    }
 
-.statOrange {
-  background: #d98c00;
-}
+    .statOrange {
+      background: #d98c00;
+    }
 
     #mesaj {
       max-width: 900px;
@@ -302,27 +303,24 @@
 
   <button id="btnIsimAra" type="button">🔎 İSİM İLE ARA</button>
   <button id="btnKlinikAra" type="button">🏥 KLİNİK İLE ARA</button>
+  <button id="btnDashboard" type="button">📊 DASHBOARD</button>
 
   <div id="reader" class="gizli"></div>
 
-<div id="aramaAlan" class="aramaBolum gizli">
-  <div id="aramaBaslik" class="aramaBaslik">Arama</div>
-  <input id="aramaInput" placeholder="Arama yazın">
-  <button id="btnAra" type="button" class="yesilBtn">ARA</button>
-  <div id="aramaSonuclari"></div>
-</div>
-
-<div id="dashboardAlan" class="aramaBolum gizli">
-  <div class="aramaBaslik">Dashboard</div>
-
-  <div id="dashboardIcerik" class="sonucKart">
-    Veriler yükleniyor...
+  <div id="aramaAlan" class="panelBolum gizli">
+    <div id="aramaBaslik" class="bolumBaslik">Arama</div>
+    <input id="aramaInput" placeholder="Arama yazın">
+    <button id="btnAra" type="button" class="yesilBtn">ARA</button>
+    <div id="aramaSonuclari"></div>
   </div>
 
-  <button id="btnDashboardYenile" type="button" class="yesilBtn">🔄 YENİLE</button>
-</div>
+  <div id="dashboardAlan" class="panelBolum gizli">
+    <div class="bolumBaslik">Dashboard</div>
+    <div id="dashboardIcerik" class="sonucKart">Veriler yükleniyor...</div>
+    <button id="btnDashboardYenile" type="button" class="yesilBtn">🔄 YENİLE</button>
+  </div>
 
-<div id="mesaj"></div>
+  <div id="mesaj"></div>
 </div>
 
 <div id="popupOverlay" class="popupOverlay">
@@ -405,7 +403,7 @@ document.addEventListener("DOMContentLoaded", function() {
   });
 
   el("btnDashboard").addEventListener("click", dashboardAc);
-el("btnDashboardYenile").addEventListener("click", dashboardVerileriniGetir);
+  el("btnDashboardYenile").addEventListener("click", dashboardVerileriniGetir);
 
   el("btnAra").addEventListener("click", ara);
 
@@ -546,11 +544,7 @@ async function kamerayiBaslat() {
     qrbox: function(viewfinderWidth, viewfinderHeight) {
       const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
       const qrboxSize = Math.floor(minEdge * 0.78);
-
-      return {
-        width: qrboxSize,
-        height: qrboxSize
-      };
+      return { width: qrboxSize, height: qrboxSize };
     },
     disableFlip: false
   };
@@ -900,74 +894,6 @@ async function aramaAc(tip) {
   }, 200);
 }
 
-  async function dashboardAc() {
-  await kamerayiKapat();
-
-  el("aramaAlan").classList.add("gizli");
-  el("dashboardAlan").classList.remove("gizli");
-
-  el("durum").textContent = "Dashboard açık";
-  el("dashboardIcerik").innerHTML = "Veriler yükleniyor...";
-
-  dashboardVerileriniGetir();
-}
-
-function dashboardVerileriniGetir() {
-  el("dashboardIcerik").innerHTML = "Veriler yükleniyor...";
-
-  jsonpApi({
-    api: "stats"
-  }, function(res) {
-    if (!res || res.durum !== "basarili") {
-      el("dashboardIcerik").innerHTML =
-        "❌ " + escapeHtml((res && res.mesaj) || "Dashboard verisi alınamadı.");
-      return;
-    }
-
-    dashboardYaz(res);
-  }, function() {
-    el("dashboardIcerik").innerHTML =
-      "❌ Apps Script bağlantı hatası.";
-  });
-}
-
-function dashboardYaz(res) {
-  el("dashboardIcerik").innerHTML =
-    '<div class="statGrid">' +
-
-      '<div class="statBox">' +
-        '<div class="statNumber">' + escapeHtml(res.toplam) + '</div>' +
-        '<div class="statLabel">Toplam Kayıt</div>' +
-      '</div>' +
-
-      '<div class="statBox statGreen">' +
-        '<div class="statNumber">' + escapeHtml(res.girisYapti) + '</div>' +
-        '<div class="statLabel">Giriş Yaptı</div>' +
-      '</div>' +
-
-      '<div class="statBox statRed">' +
-        '<div class="statNumber">' + escapeHtml(res.girisYapmadi) + '</div>' +
-        '<div class="statLabel">Giriş Yapmadı</div>' +
-      '</div>' +
-
-      '<div class="statBox statOrange">' +
-        '<div class="statNumber">%' + escapeHtml(res.oran) + '</div>' +
-        '<div class="statLabel">Giriş Oranı</div>' +
-      '</div>' +
-
-      '<div class="statBox">' +
-        '<div class="statNumber">' + escapeHtml(res.katiliyor) + '</div>' +
-        '<div class="statLabel">Katılıyor</div>' +
-      '</div>' +
-
-      '<div class="statBox statRed">' +
-        '<div class="statNumber">' + escapeHtml(res.katilmiyor) + '</div>' +
-        '<div class="statLabel">Katılmıyor</div>' +
-      '</div>' +
-
-    '</div>';
-}
-  
 function ara() {
   const kelime = String(el("aramaInput").value || "").trim();
 
@@ -1043,6 +969,74 @@ function aramaSonuclariniYaz(liste) {
     kart.appendChild(btn);
     alan.appendChild(kart);
   });
+}
+
+async function dashboardAc() {
+  await kamerayiKapat();
+
+  el("aramaAlan").classList.add("gizli");
+  el("dashboardAlan").classList.remove("gizli");
+
+  el("durum").textContent = "Dashboard açık";
+  el("dashboardIcerik").innerHTML = "Veriler yükleniyor...";
+
+  dashboardVerileriniGetir();
+}
+
+function dashboardVerileriniGetir() {
+  el("dashboardIcerik").innerHTML = "Veriler yükleniyor...";
+
+  jsonpApi({
+    api: "stats"
+  }, function(res) {
+    if (!res || res.durum !== "basarili") {
+      el("dashboardIcerik").innerHTML =
+        "❌ " + escapeHtml((res && res.mesaj) || "Dashboard verisi alınamadı.");
+      return;
+    }
+
+    dashboardYaz(res);
+  }, function() {
+    el("dashboardIcerik").innerHTML =
+      "❌ Apps Script bağlantı hatası.";
+  });
+}
+
+function dashboardYaz(res) {
+  el("dashboardIcerik").innerHTML =
+    '<div class="statGrid">' +
+
+      '<div class="statBox">' +
+        '<div class="statNumber">' + escapeHtml(res.toplam) + '</div>' +
+        '<div class="statLabel">Toplam Kayıt</div>' +
+      '</div>' +
+
+      '<div class="statBox statGreen">' +
+        '<div class="statNumber">' + escapeHtml(res.girisYapti) + '</div>' +
+        '<div class="statLabel">Giriş Yaptı</div>' +
+      '</div>' +
+
+      '<div class="statBox statRed">' +
+        '<div class="statNumber">' + escapeHtml(res.girisYapmadi) + '</div>' +
+        '<div class="statLabel">Giriş Yapmadı</div>' +
+      '</div>' +
+
+      '<div class="statBox statOrange">' +
+        '<div class="statNumber">%' + escapeHtml(res.oran) + '</div>' +
+        '<div class="statLabel">Giriş Oranı</div>' +
+      '</div>' +
+
+      '<div class="statBox">' +
+        '<div class="statNumber">' + escapeHtml(res.katiliyor) + '</div>' +
+        '<div class="statLabel">Katılıyor</div>' +
+      '</div>' +
+
+      '<div class="statBox statRed">' +
+        '<div class="statNumber">' + escapeHtml(res.katilmiyor) + '</div>' +
+        '<div class="statLabel">Katılmıyor</div>' +
+      '</div>' +
+
+    '</div>';
 }
 
 function qrMetnindenIdAl(text) {
